@@ -1,25 +1,28 @@
-FROM python:3.11
+FROM python:3.9-slim
 
-RUN apt-get update && \
-    apt-get install -y \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     ffmpeg \
-    libvpx-dev \
-    libopus-dev && \
-    apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# Set working directory
 WORKDIR /app
 
-# Copy Python requirements and application files
-COPY requirements.txt ./
-COPY convert.py ./
-COPY videos ./videos
-
-# Create output directory
-RUN mkdir -p /app/output
-
-# Install Python dependencies (if any)
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Command to run the script
-CMD ["python", "Videoconvert.py"]
+# Copy application files
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p converted videos
+
+# Set environment variable to indicate Docker environment
+ENV DOCKER_ENV=1
+
+# Expose port
+EXPOSE 8080
+
+# Run the Flask app directly
+CMD ["python", "app.py"]

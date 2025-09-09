@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebM Converter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="creator-info">
+        Created with <span class="heart">❤️</span> by <a href="https://vaibdev.com" target="_blank">Vaibhav Sharma</a>
+    </div>
+    
+    <div class="container">
+        <h1>WebM Converter</h1>
+        <p class="subtitle">Convert videos to modern WebM format</p>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message {% if 'Error' in message or 'Failed' in message %}error{% else %}success{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">🎬</div>
+                <div class="upload-text">Drag & drop videos here</div>
+                <div class="upload-hint">or click to browse</div>
+                <input type="file" name="files" accept=".mp4,.mov,.avi,.mkv" multiple required id="fileInput">
+            </div>
+            <div class="file-count" id="fileCount"></div>
+            <button type="submit" class="convert-btn" id="convertBtn">Convert to WebM</button>
+        </form>
+        
+        <div class="file-preview" id="filePreview">
+            <h3>Selected Files:</h3>
+            <div class="file-list" id="fileList"></div>
+        </div>
+        
+        {% if not results %}
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🚀</div>
+                <div class="feature-title">Better Compression</div>
+                <div class="feature-desc">VP9 codec for optimal quality</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-title">High Quality</div>
+                <div class="feature-desc">CRF 30 for excellent results</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Fast</div>
+                <div class="feature-desc">Batch convert up to 10 files</div>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">10</div>
+                <div class="stat-label">Max Files</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">500MB</div>
+                <div class="stat-label">Max Size</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Formats</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if results %}
+        <div class="results-section">
+            <div class="success-icon">🎉</div>
+            <h2>Conversion Complete!</h2>
+            
+            <div class="summary">
+                <div class="summary-title">Successfully converted {{ results.files|length }} file{{ 's' if results.files|length > 1 else '' }}</div>
+                <div class="summary-stats">
+                    <div class="stat">
+                        <div class="stat-number">{{ "%.1f"|format(results.files|sum(attribute='savings_percent')/results.files|length) }}%</div>
+                        <div class="stat-label">Average Savings</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">{{ format_file_size(results.files|sum(attribute='original_size') - results.files|sum(attribute='converted_size')) }}</div>
+                        <div class="stat-label">Total Saved</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="files-grid">
+                {% for file in results.files %}
+                <div class="file-card">
+                    <div class="file-name">{{ file.filename }}</div>
+                    <div class="file-sizes">
+                        <div class="size-info">
+                            <div class="size-label">Original</div>
+                            <div class="size-value">{{ format_file_size(file.original_size) }}</div>
+                        </div>
+                        <div class="size-info">
+                            <div class="size-label">WebM</div>
+                            <div class="size-value">{{ format_file_size(file.converted_size) }}</div>
+                        </div>
+                    </div>
+                    <div class="savings">
+                        {% if file.savings_percent > 0 %}
+                            🎯 {{ "%.1f"|format(file.savings_percent) }}% smaller
+                        {% else %}
+                            📈 {{ "%.1f"|format(-file.savings_percent) }}% larger
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="download-section">
+                {% if results.is_batch %}
+                    <a href="{{ url_for('download_batch') }}" class="download-btn">📦 Download All as ZIP</a>
+                {% else %}
+                    <a href="{{ url_for('download_file', filename=results.files[0].filename) }}" class="download-btn">⬇️ Download {{ results.files[0].filename }}</a>
+                {% endif %}
+                <a href="{{ url_for('index') }}" class="download-btn back-btn">🔄 Convert More Files</a>
+            </div>
+            
+            {% if results.errors %}
+            <div class="errors">
+                <div class="error-title">⚠️ Some files couldn't be converted:</div>
+                {% for error in results.errors %}
+                    <div class="error-item">{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
