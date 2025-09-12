@@ -18,24 +18,60 @@ def create_desktop_shortcut():
         print(f"Unsupported system: {system}")
 
 def create_windows_shortcut(project_dir):
+    """Create Windows desktop shortcut using VBS script"""
+    # Try multiple desktop locations
+    desktop_paths = [
+        os.path.join(os.path.expanduser("~"), "Desktop"),
+        os.path.join(os.path.expanduser("~"), "OneDrive", "Desktop"),
+        os.environ.get('USERPROFILE', '') + "\\Desktop",
+        os.environ.get('USERPROFILE', '') + "\\OneDrive\\Desktop"
+    ]
+    
+    desktop = None
+    for path in desktop_paths:
+        if os.path.exists(path):
+            desktop = path
+            break
+    
+    if not desktop:
+        raise Exception("Could not find Desktop folder")
+    
+    shortcut_path = os.path.join(desktop, "Video Converter.lnk")
+    target = os.path.join(project_dir, "scripts", "run.bat")
+    working_dir = os.path.join(project_dir, "scripts")
+    
+    print(f"Creating shortcut at: {shortcut_path}")
+    print(f"Target: {target}")
+    print(f"Working Directory: {working_dir}")
+    
+    # Create VBS script to make shortcut
+    vbs_script = f'''Set oWS = WScript.CreateObject("WScript.Shell")
+Set oLink = oWS.CreateShortcut("{shortcut_path}")
+oLink.TargetPath = "{target}"
+oLink.WorkingDirectory = "{working_dir}"
+oLink.Save
+'''
+    
+    # Write and execute VBS script
+    vbs_file = "create_shortcut.vbs"
+    with open(vbs_file, 'w') as f:
+        f.write(vbs_script)
+    
     try:
-        import winshell
-        from win32com.client import Dispatch
-        
-        desktop = winshell.desktop()
-        shortcut_path = os.path.join(desktop, "Video Converter.lnk")
-        
-        shell = Dispatch('WScript.Shell')
-        shortcut = shell.CreateShortCut(shortcut_path)
-        shortcut.Targetpath = os.path.join(project_dir, "scripts", "run.bat")
-        shortcut.WorkingDirectory = str(project_dir)
-        shortcut.IconLocation = os.path.join(project_dir, "scripts", "run.bat")
-        shortcut.save()
-        
-        print(f"Desktop shortcut created: {shortcut_path}")
-    except ImportError:
-        print("Creating manual shortcut...")
-        print(f"Create a shortcut to: {project_dir}/scripts/run.bat")
+        result = subprocess.run(["cscript", "//nologo", vbs_file], capture_output=True, text=True)
+        os.remove(vbs_file)
+        if result.returncode == 0:
+            print(f"Desktop shortcut created: {shortcut_path}")
+            if os.path.exists(shortcut_path):
+                print("Shortcut file confirmed to exist")
+            else:
+                print("Warning: Shortcut creation reported success but file not found")
+        else:
+            raise Exception(f"VBS script failed: {result.stderr}")
+    except Exception as e:
+        if os.path.exists(vbs_file):
+            os.remove(vbs_file)
+        raise e
 
 def create_macos_shortcut(project_dir):
     desktop = Path.home() / "Desktop"
@@ -98,7 +134,38 @@ Categories=AudioVideo;
     
     print(f"Desktop shortcut created: {shortcut_path}")
 
-if __name__ == "__main__":
-    print("Creating desktop shortcut...")
-    create_desktop_shortcut()
-    print("Done! You can now run Video Converter from your desktop.")
+def main():
+    print("Video Converter - Desktop Setup")
+    print("=" * 30)
+    
+    system = platform.system()
+    
+    try:
+        if system == "Windows":
+            project_dir = Path(__file__).parent.parent.absolute()
+            create_windows_shortcut(project_dir)
+        elif system == "Darwin":  # macOS
+            project_dir = Path(__file__).parent.parent.absolute()
+            create_macos_shortcut(project_dir)
+        elif system == "Linux":
+            project_dir = Path(__file__).parent.parent.absolute()
+            create_linux_shortcut(project_dir)
+        else:
+            print(f"Unsupported system: {system}")
+            return
+        
+        print("\nSetup complete! You can now:")
+        print("1. Find 'Video Converter' on your desktop")
+        print("2. Double-click it to start the converter")
+        print("3. Delete this folder if you want - the shortcut will still work")
+        
+    except Exception as e:
+        print(f"Failed to create shortcut: {e}")
+        print("You can still use the converter by running:")
+        if system == "Windows":
+            print("  run.bat")
+        else:
+            print("  ./run.sh")
+
+if __name__ == '__main__':
+    main()

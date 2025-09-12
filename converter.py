@@ -59,6 +59,43 @@ def check_ffmpeg():
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
+def install_ffmpeg():
+    """Attempt to auto-install FFmpeg"""
+    system = platform.system()
+    
+    try:
+        if system == 'Darwin':  # macOS
+            print("Installing FFmpeg via Homebrew...")
+            subprocess.check_call(['brew', 'install', 'ffmpeg'])
+        elif system == 'Linux':
+            # Try different package managers
+            if subprocess.run(['which', 'apt'], capture_output=True).returncode == 0:
+                print("Installing FFmpeg via apt...")
+                subprocess.check_call(['sudo', 'apt', 'update'])
+                subprocess.check_call(['sudo', 'apt', 'install', '-y', 'ffmpeg'])
+            elif subprocess.run(['which', 'yum'], capture_output=True).returncode == 0:
+                print("Installing FFmpeg via yum...")
+                subprocess.check_call(['sudo', 'yum', 'install', '-y', 'ffmpeg'])
+            elif subprocess.run(['which', 'dnf'], capture_output=True).returncode == 0:
+                print("Installing FFmpeg via dnf...")
+                subprocess.check_call(['sudo', 'dnf', 'install', '-y', 'ffmpeg'])
+            else:
+                return False
+        elif system == 'Windows':
+            # Try winget first, then chocolatey
+            try:
+                print("Installing FFmpeg via winget...")
+                subprocess.check_call(['winget', 'install', '--id=Gyan.FFmpeg', '-e', '--silent'])
+            except subprocess.CalledProcessError:
+                print("Installing FFmpeg via chocolatey...")
+                subprocess.check_call(['choco', 'install', 'ffmpeg', '-y'])
+        else:
+            return False
+        
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
 def cleanup_old_files():
     """Remove files older than 2 hours from converted folder"""
     current_time = time.time()
@@ -85,17 +122,21 @@ def main():
     
     # Check ffmpeg
     if not check_ffmpeg():
-        print("ERROR: ffmpeg not found!")
-        print("Please install ffmpeg:")
-        if platform.system() == 'Darwin':
-            print("  brew install ffmpeg")
-        elif platform.system() == 'Linux':
-            print("  sudo apt install ffmpeg  # Ubuntu/Debian")
-            print("  sudo yum install ffmpeg  # CentOS/RHEL")
+        print("FFmpeg not found, attempting auto-install...")
+        if install_ffmpeg() and check_ffmpeg():
+            print("FFmpeg installed successfully ✓")
         else:
-            print("  Download from: https://ffmpeg.org/download.html")
-        input("Press Enter to exit...")
-        return
+            print("ERROR: Auto-install failed!")
+            print("Please install ffmpeg manually:")
+            if platform.system() == 'Darwin':
+                print("  brew install ffmpeg")
+            elif platform.system() == 'Linux':
+                print("  sudo apt install ffmpeg  # Ubuntu/Debian")
+                print("  sudo yum install ffmpeg  # CentOS/RHEL")
+            else:
+                print("  Download from: https://ffmpeg.org/download.html")
+            input("Press Enter to exit...")
+            return
     
     # Check if packages are installed
     try:
