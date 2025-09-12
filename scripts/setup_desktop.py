@@ -45,10 +45,15 @@ def create_windows_shortcut(project_dir):
     print(f"Working Directory: {working_dir}")
     
     # Create VBS script to make shortcut
+    icon_path = os.path.join(project_dir, "icon.ico")
+    if not os.path.exists(icon_path):
+        icon_path = target  # Use target as fallback
+    
     vbs_script = f'''Set oWS = WScript.CreateObject("WScript.Shell")
 Set oLink = oWS.CreateShortcut("{shortcut_path}")
 oLink.TargetPath = "{target}"
 oLink.WorkingDirectory = "{working_dir}"
+oLink.IconLocation = "{icon_path}"
 oLink.Save
 '''
     
@@ -111,11 +116,38 @@ python3 converter.py
 ''')
     executable.chmod(0o755)
     
+    # Add icon if available
+    icon_path = project_dir / "icon.icns"
+    if icon_path.exists():
+        import shutil
+        shutil.copy(icon_path, resources_dir / "icon.icns")
+        # Update Info.plist to reference icon
+        info_plist.write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>VideoConverter</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.videoconverter.app</string>
+    <key>CFBundleName</key>
+    <string>Video Converter</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleIconFile</key>
+    <string>icon</string>
+</dict>
+</plist>''')
+    
     print(f"Desktop app created: {app_path}")
 
 def create_linux_shortcut(project_dir):
     desktop = Path.home() / "Desktop"
     shortcut_path = desktop / "VideoConverter.desktop"
+    
+    # Check for custom icon
+    icon_path = project_dir / "icon.png"
+    icon = str(icon_path) if icon_path.exists() else "video-x-generic"
     
     shortcut_content = f'''[Desktop Entry]
 Version=1.0
@@ -124,7 +156,7 @@ Name=Video Converter
 Comment=Convert videos to WebM
 Exec=python3 "{project_dir}/converter.py"
 Path={project_dir}
-Icon=video-x-generic
+Icon={icon}
 Terminal=false
 Categories=AudioVideo;
 '''
