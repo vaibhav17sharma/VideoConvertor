@@ -35,8 +35,19 @@ def cleanup_old_files():
                     except:
                         pass
 
+def check_ffmpeg_available():
+    """Check if FFmpeg is available"""
+    try:
+        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
 def convert_to_webm(input_path, output_path):
     """Convert video to WebM using VP9 codec"""
+    if not check_ffmpeg_available():
+        raise Exception("FFmpeg not found. Please install FFmpeg and add it to your PATH.")
+    
     command = [
         "ffmpeg", "-y",
         "-i", str(input_path),

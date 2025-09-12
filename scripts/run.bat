@@ -4,15 +4,41 @@ echo Video Converter
 echo ================
 
 REM Check for FFmpeg first
+echo Checking for FFmpeg...
 ffmpeg -version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo FFmpeg not found!
-    echo.
-    echo Choose installation method:
-    echo 1. Auto-install (requires winget or chocolatey)
-    echo 2. Skip and continue (manual install later)
-    echo 3. Exit
-    set /p choice="Enter choice (1-3): "
+if %errorlevel% == 0 (
+    echo Found FFmpeg ✓
+    goto check_python
+)
+
+REM Try refreshing PATH and check again
+refreshenv >nul 2>&1
+ffmpeg -version >nul 2>&1
+if %errorlevel% == 0 (
+    echo Found FFmpeg ✓
+    goto check_python
+)
+
+REM Check common installation paths
+if exist "C:\ffmpeg\bin\ffmpeg.exe" (
+    echo Found FFmpeg in C:\ffmpeg\bin
+    set PATH=%PATH%;C:\ffmpeg\bin
+    goto check_python
+)
+
+if exist "%USERPROFILE%\ffmpeg\bin\ffmpeg.exe" (
+    echo Found FFmpeg in %USERPROFILE%\ffmpeg\bin
+    set PATH=%PATH%;%USERPROFILE%\ffmpeg\bin
+    goto check_python
+)
+
+echo FFmpeg not found!
+echo.
+echo Choose installation method:
+echo 1. Auto-install (requires winget or chocolatey)
+echo 2. Skip and continue (manual install later)
+echo 3. Exit
+set /p choice="Enter choice (1-3): "
     
     if "%choice%"=="1" (
         echo Attempting auto-install...
@@ -39,6 +65,7 @@ if %errorlevel% neq 0 (
         goto manual_install
     ) else if "%choice%"=="2" (
         echo Skipping FFmpeg check...
+        set SKIP_FFMPEG=1
         goto check_python
     ) else (
         exit /b 1
@@ -63,7 +90,6 @@ if %errorlevel% neq 0 (
         exit /b 1
     )
 )
-echo Found FFmpeg ✓
 
 :check_python
 

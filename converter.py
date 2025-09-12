@@ -59,6 +59,19 @@ def check_ffmpeg():
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
+def check_ffmpeg_runtime():
+    """Runtime check for FFmpeg with user-friendly error"""
+    if not check_ffmpeg():
+        print("\nERROR: FFmpeg is required for video conversion!")
+        print("Please install FFmpeg and add it to your PATH:")
+        if platform.system() == 'Windows':
+            print("1. Download from: https://ffmpeg.org/download.html#build-windows")
+            print("2. Extract to C:\\ffmpeg")
+            print("3. Add C:\\ffmpeg\\bin to your PATH")
+            print("4. Restart your command prompt")
+        return False
+    return True
+
 def install_ffmpeg():
     """Attempt to auto-install FFmpeg"""
     system = platform.system()
@@ -120,23 +133,26 @@ def main():
     print(f"Running on {platform.system()} {platform.release()}")
     print()
     
-    # Check ffmpeg
-    if not check_ffmpeg():
-        print("FFmpeg not found, attempting auto-install...")
-        if install_ffmpeg() and check_ffmpeg():
-            print("FFmpeg installed successfully ✓")
-        else:
-            print("ERROR: Auto-install failed!")
-            print("Please install ffmpeg manually:")
-            if platform.system() == 'Darwin':
-                print("  brew install ffmpeg")
-            elif platform.system() == 'Linux':
-                print("  sudo apt install ffmpeg  # Ubuntu/Debian")
-                print("  sudo yum install ffmpeg  # CentOS/RHEL")
+    # Check ffmpeg (skip if user chose to skip in batch file)
+    if not os.getenv('SKIP_FFMPEG'):
+        if not check_ffmpeg():
+            print("FFmpeg not found, attempting auto-install...")
+            if install_ffmpeg() and check_ffmpeg():
+                print("FFmpeg installed successfully ✓")
             else:
-                print("  Download from: https://ffmpeg.org/download.html")
-            input("Press Enter to exit...")
-            return
+                print("ERROR: Auto-install failed!")
+                print("Please install ffmpeg manually:")
+                if platform.system() == 'Darwin':
+                    print("  brew install ffmpeg")
+                elif platform.system() == 'Linux':
+                    print("  sudo apt install ffmpeg  # Ubuntu/Debian")
+                    print("  sudo yum install ffmpeg  # CentOS/RHEL")
+                else:
+                    print("  Download from: https://ffmpeg.org/download.html")
+                input("Press Enter to exit...")
+                return
+    else:
+        print("FFmpeg check skipped (will check during conversion)")
     
     # Check if packages are installed
     try:
