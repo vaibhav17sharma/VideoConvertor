@@ -1,12 +1,15 @@
 from flask import Flask, request, render_template, send_file, flash, redirect, url_for
+from flask_socketio import SocketIO, emit
 import os
 import subprocess
 import uuid
 import zipfile
 from pathlib import Path
 from werkzeug.utils import secure_filename
+import threading
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 app.secret_key = 'your-secret-key-change-this'
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max total size
 
@@ -43,13 +46,25 @@ def check_ffmpeg_available():
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
-def convert_to_webm(input_path, output_path):
-    """Convert video to WebM using VP9 codec"""
+def get_video_duration(input_path):
+    """Get video duration in seconds"""
+    command = ["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", str(input_path)]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+        return float(result.stdout.strip())
+    except:
+        return None
+
+def convert_to_webm(input_path, output_path, progress_callback=None):
+    """Convert video to WebM using VP9 codec with progress tracking"""
     if not check_ffmpeg_available():
         raise Exception("FFmpeg not found. Please install FFmpeg and add it to your PATH.")
     
+    # Get video duration for ETA calculation
+    duration = get_video_duration(input_path)
+    
     command = [
-        "ffmpeg", "-y",
+        "ffmpeg", "-y", "-progress", "pipe:1",
         "-i", str(input_path),
         "-c:v", "libvpx-vp9",
         "-crf", "30",
@@ -58,8 +73,41 @@ def convert_to_webm(input_path, output_path):
         "-auto-alt-ref", "4",
         str(output_path)
     ]
-    result = subprocess.run(command, capture_output=True, text=True)
-    return result.returncode == 0
+    
+    import time
+    start_time = time.time()
+    
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, universal_newlines=True)
+    
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        
+        if output and "out_time_ms=" in output:
+            try:
+                # Parse current time in microseconds
+                time_ms = int(output.split("out_time_ms=")[1].strip())
+                current_time = time_ms / 1000000  # Convert to seconds
+                
+                if duration and current_time > 0:
+                    progress = min(current_time / duration, 1.0)
+                    elapsed = time.time() - start_time
+                    
+                    if progress > 0.01:  # Avoid division by very small numbers
+                        eta_seconds = (elapsed / progress) - elapsed
+                        eta_minutes = int(eta_seconds // 60)
+                        eta_seconds = int(eta_seconds % 60)
+                        
+                        if progress_callback:
+                            progress_callback({
+                                'progress': progress * 100,
+                                'eta': f"{eta_minutes}m {eta_seconds}s" if eta_minutes > 0 else f"{eta_seconds}s"
+                            })
+            except:
+                pass
+    
+    return process.returncode == 0
 
 @app.route('/')
 def index():
@@ -111,7 +159,15 @@ def upload_ajax():
             webm_filename = f"{base_name}.webm"
             webm_path = os.path.join(CONVERTED_FOLDER, webm_filename)
             
-            if convert_to_webm(temp_path, webm_path):
+            # Progress callback for WebSocket updates
+            def progress_callback(data):
+                socketio.emit('conversion_progress', {
+                    'filename': filename,
+                    'progress': data['progress'],
+                    'eta': data['eta']
+                })
+            
+            if convert_to_webm(temp_path, webm_path, progress_callback):
                 converted_size = os.path.getsize(webm_path)
                 savings_percent = ((original_size - converted_size) / original_size) * 100
                 
@@ -234,4 +290,4 @@ def format_file_size(size_bytes):
 app.jinja_env.globals.update(format_file_size=format_file_size)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    socketio.run(app, debug=True, host='0.0.0.0', port=8080, allow_unsafe_werkzeug=True)

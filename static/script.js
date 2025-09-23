@@ -3,6 +3,37 @@ const fileInput = document.getElementById('fileInput');
 const fileCount = document.getElementById('fileCount');
 const convertBtn = document.getElementById('convertBtn');
 
+// WebSocket connection for progress updates
+const socket = io();
+let progressData = {};
+
+socket.on('conversion_progress', (data) => {
+    progressData[data.filename] = data;
+    updateProgressDisplay();
+});
+
+function updateProgressDisplay() {
+    const progressContainer = document.getElementById('progressContainer');
+    if (!progressContainer) return;
+    
+    let html = '';
+    for (const [filename, data] of Object.entries(progressData)) {
+        html += `
+            <div class="progress-item">
+                <div class="progress-filename">${filename}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${data.progress}%"></div>
+                </div>
+                <div class="progress-info">
+                    <span class="progress-percent">${data.progress.toFixed(1)}%</span>
+                    <span class="progress-eta">ETA: ${data.eta}</span>
+                </div>
+            </div>
+        `;
+    }
+    progressContainer.innerHTML = html;
+}
+
 // Drag and drop
 uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -77,6 +108,10 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     
     convertBtn.textContent = 'Converting...';
     convertBtn.disabled = true;
+    
+    // Show progress container
+    showProgressContainer();
+    progressData = {};
     
     // Clear any existing flash messages
     const flashMessages = document.querySelector('.flash-messages');
@@ -188,6 +223,16 @@ function showResults(results) {
     
     // Start cleanup timer
     startCleanupTimer();
+}
+
+function showProgressContainer() {
+    const progressHTML = `
+        <div class="progress-section" id="progressSection">
+            <h3>Converting Videos...</h3>
+            <div id="progressContainer"></div>
+        </div>
+    `;
+    document.querySelector('.container').insertAdjacentHTML('beforeend', progressHTML);
 }
 
 function showError(message) {
