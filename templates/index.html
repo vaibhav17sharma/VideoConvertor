@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebM Converter</title>
+    <title>Video Converter</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="creator-info">
         Created with <span class="heart">❤️</span> by <a href="https://vaibdev.com" target="_blank">Vaibhav Sharma</a>
     </div>
-    
+
     <div class="container">
-        <h1>WebM Converter</h1>
-        <p class="subtitle">Convert videos to modern WebM format</p>
-        
+        <h1>Video Converter</h1>
+        <p class="subtitle">Convert videos to WebM or HLS (m3u8)</p>
+
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <div class="flash-messages">
@@ -26,7 +26,7 @@
                 </div>
             {% endif %}
         {% endwith %}
-        
+
         <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">🎬</div>
@@ -35,14 +35,17 @@
                 <input type="file" name="files" accept=".mp4,.mov,.avi,.mkv" multiple required id="fileInput">
             </div>
             <div class="file-count" id="fileCount"></div>
-            <button type="submit" class="convert-btn" id="convertBtn">Convert to WebM</button>
+            <div class="convert-btn-group">
+                <button type="submit" class="convert-btn" id="convertWebmBtn">Convert to WebM</button>
+                <button type="button" class="convert-btn convert-btn-hls" id="convertHlsBtn">Convert to m3u8</button>
+            </div>
         </form>
-        
+
         <div class="file-preview" id="filePreview">
             <h3>Selected Files:</h3>
             <div class="file-list" id="fileList"></div>
         </div>
-        
+
         {% if not results %}
         <div class="features">
             <div class="feature">
@@ -61,7 +64,7 @@
                 <div class="feature-desc">Batch convert up to 10 files</div>
             </div>
         </div>
-        
+
         <div class="stats">
             <div class="stat">
                 <div class="stat-number">10</div>
@@ -77,12 +80,12 @@
             </div>
         </div>
         {% endif %}
-        
+
         {% if results %}
         <div class="results-section">
             <div class="success-icon">🎉</div>
             <h2>Conversion Complete!</h2>
-            
+
             <div class="summary">
                 <div class="summary-title">Successfully converted {{ results.files|length }} file{{ 's' if results.files|length > 1 else '' }}</div>
                 <div class="summary-stats">
@@ -96,7 +99,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="files-grid">
                 {% for file in results.files %}
                 <div class="file-card">
@@ -121,7 +124,7 @@
                 </div>
                 {% endfor %}
             </div>
-            
+
             <div class="download-section">
                 {% if results.is_batch %}
                     <a href="{{ url_for('download_batch') }}" class="download-btn">📦 Download All as ZIP</a>
@@ -130,7 +133,7 @@
                 {% endif %}
                 <a href="{{ url_for('index') }}" class="download-btn back-btn">🔄 Convert More Files</a>
             </div>
-            
+
             {% if results.errors %}
             <div class="errors">
                 <div class="error-title">⚠️ Some files couldn't be converted:</div>
