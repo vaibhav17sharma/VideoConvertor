@@ -1,6 +1,6 @@
-# Video to WebM Converter
+# Video Converter
 
-A modern web-based video converter that converts MP4, MOV, AVI, and MKV files to WebM format using VP9 codec with Opus audio.
+A modern web-based video converter that converts MP4, MOV, AVI, and MKV files to WebM (VP9/Opus) or HLS (m3u8) format. Uses GPU encoding when available, with automatic CPU fallback.
 
 ## Quick Start
 
@@ -44,7 +44,9 @@ VideoConvertor/
 ├── templates/         # HTML templates
 │   └── index.html     # Main interface
 ├── utils/             # Utility scripts
-│   └── convert.py     # Simple CLI converter
+│   ├── convert.py     # Simple CLI converter
+│   ├── webm_convert.py # WebM conversion (GPU→CPU fallback)
+│   └── hls_convert.py  # HLS conversion (GPU→CPU fallback)
 ├── docs/              # Documentation
 │   ├── README.md      # Detailed documentation
 │   └── Dockerfile     # Container setup
@@ -54,9 +56,10 @@ VideoConvertor/
 
 ## Features
 
-- Convert MP4, MOV, AVI, MKV to WebM (VP9 + Opus)
+- Convert MP4, MOV, AVI, MKV to **WebM** (VP9 + Opus) or **HLS/m3u8** (H.264 + AAC)
+- GPU-accelerated encoding (NVIDIA) with automatic CPU fallback
 - Batch conversion (up to 10 files, 500MB total)
-- Real-time file size comparison and savings
+- Real-time progress bars and ETA
 - Auto-cleanup timer (30 minutes)
 - Drag & drop interface
 - Cross-platform support (Windows/Mac/Linux)
@@ -107,10 +110,15 @@ python converter.py
 
 ## Video Conversion Settings
 
-- **Video Codec:** VP9 (libvpx-vp9)
+### WebM
+- **Video Codec:** VP9 — GPU: `vp9_nvenc`, CPU fallback: `libvpx-vp9`
 - **Audio Codec:** Opus (libopus)
-- **Quality:** CRF 30 (high quality)
-- **Mode:** Variable bitrate for optimal compression
+- **Quality:** CRF 30, variable bitrate
+
+### HLS (m3u8)
+- **Video Codec:** H.264 — GPU: `h264_nvenc`, CPU fallback: `libx264`
+- **Audio Codec:** AAC
+- **Segment length:** 10 seconds, VOD playlist
 
 ---
 
